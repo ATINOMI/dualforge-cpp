@@ -1,0 +1,43 @@
+name: C++ validation
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate standalone project
+        shell: bash
+        run: |
+          if [ -f dualforge-cpp/CMakeLists.txt ]; then
+            echo "PROJECT_DIR=dualforge-cpp" >> "$GITHUB_ENV"
+          else
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          fi
+      - name: Configure
+        run: cmake -S "${{ env.PROJECT_DIR }}" -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
+      - name: Build
+        run: cmake --build build --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Install
+        run: cmake --install build --config Release
+      - name: Installed consumer
+        run: cmake -S "${{ env.PROJECT_DIR }}/tests/consumer" -B consumer-build -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install"
+      - name: Link installed consumer
+        run: cmake --build consumer-build --config Release
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure and test
+        shell: bash
+        run: |
+          source_dir=.
+          if [ -f dualforge-cpp/CMakeLists.txt ]; then source_dir=dualforge-cpp; fi
+          cmake -S "$source_dir" -B build -DCMAKE_BUILD_TYPE=Debug -DDUALFORGE_SANITIZERS=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure

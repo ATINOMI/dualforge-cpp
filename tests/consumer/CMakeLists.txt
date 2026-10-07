@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.24)
+project(DualForgeConsumer LANGUAGES CXX)
+find_package(DualForge 0.1 CONFIG REQUIRED)
+add_executable(consumer main.cpp)
+target_link_libraries(consumer PRIVATE DualForge::DualForge)
